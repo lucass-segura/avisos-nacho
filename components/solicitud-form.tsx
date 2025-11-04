@@ -24,7 +24,12 @@ const NOMBRES_SOLICITANTES = ["Ignacio Suñé", "Jésica Destéfano", "Noelia Ga
 
 const TIPOS_SOLICITUD = ["Reparación / Acondicionamiento", "Oportunidad a Mejora", "Inversión"]
 
-const CRITICIDADES = ["Bajo", "Medio", "Alto", "Crítico (avisar también por WhatsApp)"]
+const CRITICIDADES = [
+  { value: "Bajo", label: "Bajo" },
+  { value: "Medio", label: "Medio" },
+  { value: "Alto", label: "Alto" },
+  { value: "Crítico", label: "Crítico (avisar también por WhatsApp)" },
+]
 
 export function SolicitudForm() {
   const [loading, setLoading] = useState(false)
@@ -129,11 +134,11 @@ export function SolicitudForm() {
                 Criticidad de la Solicitud <span className="text-red-500">*</span>
               </Label>
               <RadioGroup name="criticidad" required disabled={loading}>
-                {CRITICIDADES.map((criticidad) => (
-                  <div key={criticidad} className="flex items-center space-x-2">
-                    <RadioGroupItem value={criticidad} id={criticidad} />
-                    <Label htmlFor={criticidad} className="font-normal cursor-pointer">
-                      {criticidad}
+                {CRITICIDADES.map((crit) => (
+                  <div key={crit.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={crit.value} id={crit.value} />
+                    <Label htmlFor={crit.value} className="font-normal cursor-pointer">
+                      {crit.label}
                     </Label>
                   </div>
                 ))}

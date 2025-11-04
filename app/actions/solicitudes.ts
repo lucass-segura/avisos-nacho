@@ -91,10 +91,12 @@ export async function getAllSolicitudes(filters?: {
 
   let query = supabase
     .from("solicitudes")
-    .select(`
+    .select(
+      `
       *,
       usuario:usuarios!solicitudes_usuario_id_fkey(username)
-    `)
+    `,
+    )
     .order("created_at", { ascending: false })
 
   // Aplicar filtros
@@ -112,25 +114,19 @@ export async function getAllSolicitudes(filters?: {
   }
 
   if (filters?.fechaInicio) {
-    // Parsear fecha en formato dd/mm/yyyy
     const [day, month, year] = filters.fechaInicio.split("/")
-    const date = new Date(`${year}-${month}-${day}`)
 
-    // Inicio del día en Argentina (00:00:00)
-    date.setHours(0, 0, 0, 0)
+    const fechaInicioArgentina = `${year}-${month}-${day}T00:00:00.000-03:00`
 
-    query = query.gte("created_at", date.toISOString())
+    query = query.gte("created_at", fechaInicioArgentina)
   }
 
   if (filters?.fechaFin) {
-    // Parsear fecha en formato dd/mm/yyyy
     const [day, month, year] = filters.fechaFin.split("/")
-    const date = new Date(`${year}-${month}-${day}`)
 
-    // Fin del día en Argentina (23:59:59)
-    date.setHours(23, 59, 59, 999)
+    const fechaFinArgentina = `${year}-${month}-${day}T23:59:59.999-03:00`
 
-    query = query.lte("created_at", date.toISOString())
+    query = query.lte("created_at", fechaFinArgentina)
   }
 
   const { data: solicitudes, error } = await query

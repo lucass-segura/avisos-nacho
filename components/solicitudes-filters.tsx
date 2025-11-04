@@ -12,7 +12,12 @@ import { es } from "date-fns/locale"
 
 const NOMBRES_SOLICITANTES = ["Ignacio Suñé", "Jésica Destéfano", "Noelia García", "Silvana Guccione"]
 const TIPOS_SOLICITUD = ["Reparación / Acondicionamiento", "Oportunidad a Mejora", "Inversión"]
-const CRITICIDADES = ["Bajo", "Medio", "Alto", "Crítico (avisar también por WhatsApp)"]
+const CRITICIDAD_OPTIONS = [
+  { value: "Bajo", label: "Bajo" },
+  { value: "Medio", label: "Medio" },
+  { value: "Alto", label: "Alto" },
+  { value: "Crítico", label: "Crítico (avisar también por WhatsApp)" }, // Valor del filtro es "Crítico"
+]
 
 type Filters = {
   nombreSolicitante?: string
@@ -136,9 +141,9 @@ export function SolicitudesFilters({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todas</SelectItem>
-              {CRITICIDADES.map((criticidad) => (
-                <SelectItem key={criticidad} value={criticidad}>
-                  {criticidad}
+              {CRITICIDAD_OPTIONS.map((crit) => (
+                <SelectItem key={crit.value} value={crit.value}>
+                  {crit.label}
                 </SelectItem>
               ))}
             </SelectContent>
