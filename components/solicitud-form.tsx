@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import imageCompression from "browser-image-compression"
 
 const NOMBRES_SOLICITANTES = ["Ignacio Suñé", "Jésica Destéfano", "Noelia García", "Silvana Guccione"]
 
@@ -41,16 +42,42 @@ export function SolicitudForm() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+  const [isProcessingImage, setIsProcessingImage] = useState(false)
 
-  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) {
-      setImageFile(file)
+    if (!file) return
+
+    setIsProcessingImage(true)
+
+    const options = {
+      maxSizeMB: 0.5,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+      initialQuality: 0.7,
+    }
+
+    try {
+      console.log(`Tamaño original: ${(file.size / 1024 / 1024).toFixed(2)} MB`)
+      
+      const compressedFile = await imageCompression(file, options)
+      
+      console.log(`Tamaño comprimido: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`)
+
+      setImageFile(compressedFile)
       const reader = new FileReader()
       reader.onloadend = () => {
         setImagePreview(reader.result as string)
       }
-      reader.readAsDataURL(file)
+      reader.readAsDataURL(compressedFile)
+    } catch (error) {
+      console.error("Error al comprimir la imagen:", error)
+      setErrorMessage("Error al procesar la imagen. Por favor, intente con otra foto.")
+      setShowErrorModal(true)
+    } finally {
+      setIsProcessingImage(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      if (cameraInputRef.current) cameraInputRef.current.value = ""
     }
   }
 
@@ -94,7 +121,6 @@ export function SolicitudForm() {
         </CardHeader>
         <CardContent>
           <form id="solicitud-form" action={handleSubmit} className="space-y-6">
-            {/* Nombre del Solicitante */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">
                 Nombre del Solicitante <span className="text-red-500">*</span>
@@ -111,7 +137,6 @@ export function SolicitudForm() {
               </RadioGroup>
             </div>
 
-            {/* Tipo de Solicitud */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">
                 ¿Qué tipo de Solicitud es? <span className="text-red-500">*</span>
@@ -128,7 +153,6 @@ export function SolicitudForm() {
               </RadioGroup>
             </div>
 
-            {/* Criticidad */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">
                 Criticidad de la Solicitud <span className="text-red-500">*</span>
@@ -145,7 +169,6 @@ export function SolicitudForm() {
               </RadioGroup>
             </div>
 
-            {/* Descripción */}
             <div className="space-y-3">
               <Label htmlFor="descripcion" className="text-base font-semibold">
                 ¿Cuál es la Solicitud? <span className="text-red-500">*</span>
@@ -160,7 +183,6 @@ export function SolicitudForm() {
               />
             </div>
 
-            {/* Foto */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Foto</Label>
               {!imagePreview ? (
@@ -171,24 +193,34 @@ export function SolicitudForm() {
                         type="button"
                         variant="outline"
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={loading}
+                        disabled={loading || isProcessingImage}
                         className="gap-2"
                       >
-                        <Upload className="h-4 w-4" />
+                        {isProcessingImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
                         Subir Imagen
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => cameraInputRef.current?.click()}
-                        disabled={loading}
+                        disabled={loading || isProcessingImage}
                         className="gap-2"
                       >
-                        <Camera className="h-4 w-4" />
+                        {isProcessingImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Camera className="h-4 w-4" />
+                        )}
                         Tomar Foto
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">JPG, JPEG, PNG (máx. 10MB)</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isProcessingImage ? "Procesando imagen..." : "JPG, JPEG, PNG (máx. 10MB)"}
+                    </p>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -220,7 +252,7 @@ export function SolicitudForm() {
                         variant="destructive"
                         size="icon"
                         onClick={removeImage}
-                        disabled={loading}
+                        disabled={loading || isProcessingImage}
                         className="absolute top-2 right-2"
                       >
                         <X className="h-4 w-4" />
@@ -231,7 +263,7 @@ export function SolicitudForm() {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || isProcessingImage}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
