@@ -1,12 +1,23 @@
 "use client"
+
+import { useEffect, useState } from "react"
 import { logout } from "@/app/actions/auth"
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SolicitudForm } from "@/components/solicitud-form"
 import { SolicitudesListClient } from "@/components/solicitudes-list-client"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export function DashboardClient({ username }: { username: string }) {
+  const [mounted, setMounted] = useState(false)
+
+  // Esperar a que el componente se monte en el cliente para renderizar los Tabs
+  // Esto evita el error de hidratación por los IDs de Radix UI
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   async function handleLogout() {
     await logout()
     window.location.href = "/login"
@@ -27,24 +38,32 @@ export function DashboardClient({ username }: { username: string }) {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="formulario" className="space-y-6">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-            <TabsTrigger value="formulario">Formulario</TabsTrigger>
-            <TabsTrigger value="solicitudes">Mis Solicitudes</TabsTrigger>
-          </TabsList>
+        {mounted ? (
+          <Tabs defaultValue="formulario" className="space-y-6">
+            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
+              <TabsTrigger value="formulario">Formulario</TabsTrigger>
+              <TabsTrigger value="solicitudes">Mis Solicitudes</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="formulario" className="space-y-4">
-            <div className="max-w-2xl mx-auto">
-              <SolicitudForm />
-            </div>
-          </TabsContent>
+            <TabsContent value="formulario" className="space-y-4">
+              <div className="max-w-2xl mx-auto">
+                <SolicitudForm />
+              </div>
+            </TabsContent>
 
-          <TabsContent value="solicitudes" className="space-y-4">
-            <div className="max-w-4xl mx-auto">
-              <SolicitudesListClient />
-            </div>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="solicitudes" className="space-y-4">
+              <div className="max-w-4xl mx-auto">
+                <SolicitudesListClient />
+              </div>
+            </TabsContent>
+          </Tabs>
+        ) : (
+          /* Skeleton de carga para evitar saltos de diseño mientras se hidrata */
+          <div className="space-y-6 max-w-4xl mx-auto">
+            <Skeleton className="h-10 w-full max-w-md mx-auto rounded-lg" />
+            <Skeleton className="h-96 w-full rounded-lg" />
+          </div>
+        )}
       </div>
     </div>
   )

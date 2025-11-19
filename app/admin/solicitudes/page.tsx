@@ -1,13 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+export const dynamic = "force-dynamic"
+import { useEffect, useState, useCallback } from "react"
 import { getAllSolicitudes } from "@/app/actions/solicitudes"
 import { getAllUsers } from "@/app/actions/auth"
-import { AdminSolicitudesList } from "@/components/admin-solicitudes-list"
+import { SolicitudesTable } from "@/components/solicitudes-table"
 import { SolicitudesFilters } from "@/components/solicitudes-filters"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download } from "lucide-react"
+import { Download, Loader2 } from "lucide-react"
 import {
   Pagination,
   PaginationContent,
@@ -17,6 +18,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 
+// ... (Tipos Solicitud y Usuario se mantienen igual)
 type Solicitud = {
   id: string
   nombre_solicitante: string
@@ -26,6 +28,12 @@ type Solicitud = {
   imagen_base64: string | null
   imagen_tipo: string | null
   created_at: string
+  fecha_recepcion: string | null
+  fecha_derivacion: string | null
+  derivado_a: string | null
+  fecha_estimada: string | null
+  estado: string
+  observaciones: any[]
   usuario: { username: string }
 }
 
@@ -39,17 +47,29 @@ const ITEMS_PER_PAGE = 4
 export default function AdminSolicitudesPage() {
   const [allSolicitudes, setAllSolicitudes] = useState<Solicitud[]>([])
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [loading, setLoading] = useState(true)
+  // Cambio clave: Solo mostramos el loader grande la primera vez
+  const [initialLoading, setInitialLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
+  const [activeFilters, setActiveFilters] = useState({})
 
   useEffect(() => {
-    loadData()
+    loadData(true) // true indica que es la carga inicial
   }, [])
 
-  async function loadData(filters?: any) {
-    setLoading(true)
-    setCurrentPage(1) // Reset a primera página cuando cambian filtros
-    const [solicitudesResult, usuariosResult] = await Promise.all([getAllSolicitudes(filters), getAllUsers()])
+  async function loadData(isInitial = false, filters?: any) {
+    if (isInitial) setInitialLoading(true)
+
+    // Nota: NO ponemos setLoading(true) aquí para recargas subsiguientes
+    // Esto permite que la UI se mantenga visible mientras se actualizan los datos "por debajo"
+
+    const filtersToUse = filters || activeFilters
+
+    if (filters) setCurrentPage(1)
+
+    const [solicitudesResult, usuariosResult] = await Promise.all([
+      getAllSolicitudes(filtersToUse),
+      getAllUsers()
+    ])
 
     if (solicitudesResult.success) {
       setAllSolicitudes(solicitudesResult.solicitudes as any)
@@ -59,7 +79,7 @@ export default function AdminSolicitudesPage() {
       setUsuarios(usuariosResult.users as any)
     }
 
-    setLoading(false)
+    if (isInitial) setInitialLoading(false)
   }
 
   function handleFilterChange(filters: any) {
@@ -70,52 +90,40 @@ export default function AdminSolicitudesPage() {
       return acc
     }, {} as any)
 
-    loadData(cleanFilters)
+    setActiveFilters(cleanFilters)
+    loadData(false, cleanFilters) // false = recarga silenciosa
   }
 
+  const handleRefresh = useCallback(() => {
+    loadData(false) // false = recarga silenciosa
+  }, [activeFilters])
+
+  // ... (La función downloadCSV se mantiene igual)
   function downloadCSV() {
-    // Ordenar por fecha (más reciente primero)
+    // ... (mismo código de antes)
     const sortedSolicitudes = [...allSolicitudes].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     )
 
-    // Crear encabezados CSV
     const headers = [
-      "Fecha",
-      "Nombre del Solicitante",
-      "Tipo de Solicitud",
-      "Criticidad",
-      "Descripción",
-      "Usuario",
-      "Tiene Imagen",
+      "Fecha", "Nombre del Solicitante", "Tipo de Solicitud", "Criticidad",
+      "Descripción", "Usuario", "Tiene Imagen", "Estado", "Derivado A"
     ]
 
-    // Crear filas CSV
     const rows = sortedSolicitudes.map((sol) => {
       const fecha = new Date(sol.created_at).toLocaleString("es-AR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit",
         timeZone: "America/Argentina/Buenos_Aires",
       })
-
       return [
-        fecha,
-        sol.nombre_solicitante,
-        sol.tipo_solicitud,
-        sol.criticidad,
-        `"${sol.descripcion.replace(/"/g, '""')}"`, // Escapar comillas en descripción
-        sol.usuario.username,
-        sol.imagen_base64 ? "Sí" : "No",
+        fecha, sol.nombre_solicitante, sol.tipo_solicitud, sol.criticidad,
+        `"${sol.descripcion.replace(/"/g, '""')}"`, sol.usuario.username,
+        sol.imagen_base64 ? "Sí" : "No", sol.estado || "Pendiente", sol.derivado_a || "-"
       ]
     })
 
-    // Combinar encabezados y filas
     const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n")
-
-    // Crear blob y descargar
     const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" })
     const link = document.createElement("a")
     const url = URL.createObjectURL(blob)
@@ -150,11 +158,20 @@ export default function AdminSolicitudesPage() {
         <CardContent className="space-y-6">
           <SolicitudesFilters onFilterChange={handleFilterChange} usuarios={usuarios} />
 
-          {loading ? (
-            <p className="text-center text-muted-foreground py-8">Cargando solicitudes...</p>
+          {initialLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin mb-2" />
+              <p>Cargando solicitudes...</p>
+            </div>
           ) : (
             <>
-              <AdminSolicitudesList solicitudes={currentSolicitudes} />
+              <div className="overflow-x-auto">
+                <SolicitudesTable
+                  solicitudes={currentSolicitudes as any}
+                  isAdmin={true}
+                  onRefresh={handleRefresh}
+                />
+              </div>
 
               {totalPages > 1 && (
                 <Pagination>
@@ -186,10 +203,19 @@ export default function AdminSolicitudesPage() {
                 </Pagination>
               )}
 
-              <p className="text-sm text-muted-foreground text-center">
-                Mostrando {startIndex + 1}-{Math.min(endIndex, allSolicitudes.length)} de {allSolicitudes.length}{" "}
-                solicitudes
-              </p>
+              <div className="flex justify-between items-center text-xs text-muted-foreground px-2">
+                <p>
+                  Mostrando {startIndex + 1}-{Math.min(endIndex, allSolicitudes.length)} de {allSolicitudes.length} solicitudes
+                </p>
+                {/* Pequeño indicador de que está conectado en vivo */}
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  En vivo
+                </div>
+              </div>
             </>
           )}
         </CardContent>

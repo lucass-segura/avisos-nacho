@@ -80,6 +80,7 @@ export async function getAllSolicitudes(filters?: {
   usuarioId?: string
   fechaInicio?: string
   fechaFin?: string
+  estado?: string
 }) {
   const session = await getSession()
 
@@ -99,7 +100,6 @@ export async function getAllSolicitudes(filters?: {
     )
     .order("created_at", { ascending: false })
 
-  // Aplicar filtros
   if (filters?.nombreSolicitante) {
     query = query.eq("nombre_solicitante", filters.nombreSolicitante)
   }
@@ -112,20 +112,19 @@ export async function getAllSolicitudes(filters?: {
   if (filters?.usuarioId) {
     query = query.eq("usuario_id", filters.usuarioId)
   }
+  if (filters?.estado) {
+    query = query.eq("estado", filters.estado)
+  }
 
   if (filters?.fechaInicio) {
     const [day, month, year] = filters.fechaInicio.split("/")
-
     const fechaInicioArgentina = `${year}-${month}-${day}T00:00:00.000-03:00`
-
     query = query.gte("created_at", fechaInicioArgentina)
   }
 
   if (filters?.fechaFin) {
     const [day, month, year] = filters.fechaFin.split("/")
-
     const fechaFinArgentina = `${year}-${month}-${day}T23:59:59.999-03:00`
-
     query = query.lte("created_at", fechaFinArgentina)
   }
 
@@ -136,4 +135,80 @@ export async function getAllSolicitudes(filters?: {
   }
 
   return { success: true, solicitudes: solicitudes || [] }
+}
+
+
+export async function updateSolicitud(id: string, data: any) {
+  const session = await getSession()
+  if (!session || session.rol !== "admin") {
+    return { success: false, error: "No autorizado" }
+  }
+
+  const supabase = await createAdminClient()
+  const { error } = await supabase
+    .from("solicitudes")
+    .update(data)
+    .eq("id", id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath("/admin/solicitudes")
+  revalidatePath("/dashboard")
+  return { success: true }
+}
+
+export async function addObservacion(id: string, text: string) {
+  const session = await getSession()
+  if (!session || session.rol !== "admin") {
+    return { success: false, error: "No autorizado" }
+  }
+
+  const supabase = await createAdminClient()
+
+  // Obtener observaciones actuales
+  const { data: current } = await supabase.from("solicitudes").select("observaciones").eq("id", id).single()
+
+  const currentObs = current?.observaciones || []
+  const newObs = {
+    id: crypto.randomUUID(),
+    text,
+    date: new Date().toISOString(),
+    author: session.username
+  }
+
+  const { error } = await supabase
+    .from("solicitudes")
+    .update({ observaciones: [...currentObs, newObs] })
+    .eq("id", id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath("/admin/solicitudes")
+  revalidatePath("/dashboard")
+  return { success: true }
+}
+
+export async function deleteObservacion(solicitudId: string, noteId: string) {
+  const session = await getSession()
+  if (!session || session.rol !== "admin") {
+    return { success: false, error: "No autorizado" }
+  }
+
+  const supabase = await createAdminClient()
+
+  const { data: current } = await supabase.from("solicitudes").select("observaciones").eq("id", solicitudId).single()
+
+  // Filtrar la nota a eliminar
+  const updatedObs = (current?.observaciones || []).filter((obs: any) => obs.id !== noteId)
+
+  const { error } = await supabase
+    .from("solicitudes")
+    .update({ observaciones: updatedObs })
+    .eq("id", solicitudId)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath("/admin/solicitudes")
+  revalidatePath("/dashboard")
+  return { success: true }
 }

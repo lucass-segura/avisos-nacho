@@ -16,14 +16,16 @@ const CRITICIDAD_OPTIONS = [
   { value: "Bajo", label: "Bajo" },
   { value: "Medio", label: "Medio" },
   { value: "Alto", label: "Alto" },
-  { value: "Crítico", label: "Crítico (avisar también por WhatsApp)" }, // Valor del filtro es "Crítico"
+  { value: "Crítico", label: "Crítico (avisar también por WhatsApp)" },
 ]
+const ESTADOS_OPTIONS = ["Pendiente", "En proceso", "Solucionado"]
 
 type Filters = {
   nombreSolicitante?: string
   tipoSolicitud?: string
   criticidad?: string
   usuarioId?: string
+  estado?: string
   fechaInicio?: string
   fechaFin?: string
 }
@@ -127,6 +129,23 @@ export function SolicitudesFilters({
               {TIPOS_SOLICITUD.map((tipo) => (
                 <SelectItem key={tipo} value={tipo}>
                   {tipo}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Estado</Label>
+          <Select value={filters.estado} onValueChange={(v) => handleFilterChange("estado", v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos</SelectItem>
+              {ESTADOS_OPTIONS.map((est) => (
+                <SelectItem key={est} value={est}>
+                  {est}
                 </SelectItem>
               ))}
             </SelectContent>
