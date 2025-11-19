@@ -75,9 +75,10 @@ export async function createUser(formData: FormData) {
 
   const username = formData.get("username") as string
   const password = formData.get("password") as string
+  const nombre_completo = formData.get("nombre_completo") as string
   const rol = formData.get("rol") as string
 
-  if (!username || !password || !rol) {
+  if (!username || !password || !rol || !nombre_completo) {
     return { success: false, error: "Todos los campos son requeridos" }
   }
 
@@ -105,7 +106,7 @@ export async function createUser(formData: FormData) {
   const { error } = await supabase.rpc("create_user_with_password", {
     p_username: username,
     p_password: password,
-    p_nombre_completo: null,
+    p_nombre_completo: nombre_completo,
     p_rol: rol,
   })
 

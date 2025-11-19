@@ -13,5 +13,5 @@ export default async function DashboardPage() {
     redirect("/admin")
   }
 
-  return <DashboardClient username={session.username} />
+  return <DashboardClient username={session.nombre_completo || session.username} />
 }

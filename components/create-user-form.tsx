@@ -37,6 +37,11 @@ export function CreateUserForm() {
   return (
     <form id="create-user-form" action={handleSubmit} className="space-y-4">
       <div className="space-y-2">
+        <Label htmlFor="nombre_completo">Nombre Completo</Label>
+        <Input id="nombre_completo" name="nombre_completo" required disabled={loading} placeholder="Ej: Ignacio Suñé" />
+      </div>
+
+      <div className="space-y-2">
         <Label htmlFor="username">Nombre de Usuario</Label>
         <Input id="username" name="username" required disabled={loading} placeholder="sin espacios" />
       </div>

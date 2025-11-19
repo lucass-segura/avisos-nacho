@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Camera, Upload, X, Loader2 } from "lucide-react"
+import { Camera, Upload, X, Loader2, User } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   Dialog,
@@ -21,8 +21,6 @@ import {
 } from "@/components/ui/dialog"
 import imageCompression from "browser-image-compression"
 
-const NOMBRES_SOLICITANTES = ["Ignacio Suñé", "Jésica Destéfano", "Noelia García", "Silvana Guccione"]
-
 const TIPOS_SOLICITUD = ["Reparación / Acondicionamiento", "Oportunidad a Mejora", "Inversión"]
 
 const CRITICIDADES = [
@@ -32,7 +30,7 @@ const CRITICIDADES = [
   { value: "Crítico", label: "Crítico (avisar también por WhatsApp)" },
 ]
 
-export function SolicitudForm() {
+export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: string }) {
   const [loading, setLoading] = useState(false)
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
@@ -59,9 +57,9 @@ export function SolicitudForm() {
 
     try {
       console.log(`Tamaño original: ${(file.size / 1024 / 1024).toFixed(2)} MB`)
-      
+
       const compressedFile = await imageCompression(file, options)
-      
+
       console.log(`Tamaño comprimido: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`)
 
       setImageFile(compressedFile)
@@ -121,21 +119,6 @@ export function SolicitudForm() {
         </CardHeader>
         <CardContent>
           <form id="solicitud-form" action={handleSubmit} className="space-y-6">
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">
-                Nombre del Solicitante <span className="text-red-500">*</span>
-              </Label>
-              <RadioGroup name="nombre_solicitante" required disabled={loading}>
-                {NOMBRES_SOLICITANTES.map((nombre) => (
-                  <div key={nombre} className="flex items-center space-x-2">
-                    <RadioGroupItem value={nombre} id={nombre} />
-                    <Label htmlFor={nombre} className="font-normal cursor-pointer">
-                      {nombre}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
 
             <div className="space-y-3">
               <Label className="text-base font-semibold">
@@ -277,7 +260,7 @@ export function SolicitudForm() {
         </CardContent>
       </Card>
 
-      <Dialog open={loading} onOpenChange={() => {}}>
+      <Dialog open={loading} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Enviando solicitud...</DialogTitle>

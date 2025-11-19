@@ -11,7 +11,7 @@ export async function createSolicitud(formData: FormData) {
     return { success: false, error: "No estás autenticado" }
   }
 
-  const nombreSolicitante = formData.get("nombre_solicitante") as string
+  const nombreSolicitante = session.nombre_completo || session.username
   const tipoSolicitud = formData.get("tipo_solicitud") as string
   const criticidad = formData.get("criticidad") as string
   const descripcion = formData.get("descripcion") as string
