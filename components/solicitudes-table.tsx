@@ -35,25 +35,7 @@ import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { cn } from "@/lib/utils"
-
-// ... (Tipo Solicitud se mantiene igual)
-type Solicitud = {
-    id: string
-    nombre_solicitante: string
-    tipo_solicitud: string
-    criticidad: string
-    descripcion: string
-    imagen_base64: string | null
-    imagen_tipo: string | null
-    created_at: string
-    fecha_recepcion: string | null
-    fecha_derivacion: string | null
-    derivado_a: string | null
-    fecha_estimada: string | null
-    estado: string
-    observaciones: any[]
-    usuario?: { username: string }
-}
+import { Solicitud } from "@/types"
 
 export function SolicitudesTable({
     solicitudes: initialSolicitudes,
@@ -134,7 +116,7 @@ export function SolicitudesTable({
         return format(new Date(dateStr), "dd/MM/yyyy HH:mm", { locale: es })
     }
 
-    const toInputDate = (dateStr: string | null) => {
+    const toInputDate = (dateStr: string | null | undefined) => {
         if (!dateStr) return ""
         // Manejar zona horaria para evitar desfases de día
         return dateStr.split('T')[0]

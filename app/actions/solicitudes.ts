@@ -84,7 +84,7 @@ export async function getAllSolicitudes(filters?: {
 }) {
   const session = await getSession()
 
-  if (!session || session.rol !== "admin") {
+  if (!session || (session.rol !== "admin" && session.rol !== "supervisor" && session.rol !== "tecnico")) {
     return { success: false, error: "No tienes permisos", solicitudes: [] }
   }
 
@@ -95,7 +95,8 @@ export async function getAllSolicitudes(filters?: {
     .select(
       `
       *,
-      usuario:usuarios!solicitudes_usuario_id_fkey(username)
+      usuario:usuarios!solicitudes_usuario_id_fkey(username, nombre_completo),
+      tecnico:usuarios!solicitudes_tecnico_asignado_id_fkey(username, nombre_completo)
     `,
     )
     .order("created_at", { ascending: false })
@@ -131,6 +132,7 @@ export async function getAllSolicitudes(filters?: {
   const { data: solicitudes, error } = await query
 
   if (error) {
+    console.error("Error fetching:", error)
     return { success: false, error: "Error al obtener solicitudes", solicitudes: [] }
   }
 

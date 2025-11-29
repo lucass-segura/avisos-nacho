@@ -69,7 +69,7 @@ export async function getSession(): Promise<UserSession | null> {
 export async function createUser(formData: FormData) {
   const session = await getSession()
 
-  if (!session || session.rol !== "admin") {
+  if (!session || (session.rol !== "admin" && session.rol !== "supervisor")) {
     return { success: false, error: "No tienes permisos para crear usuarios" }
   }
 
@@ -99,6 +99,15 @@ export async function createUser(formData: FormData) {
 
   if (rol !== "admin" && rol !== "user") {
     return { success: false, error: "Rol inválido" }
+  }
+
+  const validRoles = ["admin", "supervisor", "tecnico", "solicitante"];
+  if (!validRoles.includes(rol)) {
+    return { success: false, error: "Rol inválido" }
+  }
+
+  if (session.rol === "supervisor" && rol === "admin") {
+    return { success: false, error: "Los supervisores no pueden crear administradores." }
   }
 
   const supabase = await createClient()

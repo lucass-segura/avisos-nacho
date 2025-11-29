@@ -1,9 +1,12 @@
 "use client"
 
+"use client"
+
 export const dynamic = "force-dynamic"
 import { useEffect, useState, useCallback } from "react"
 import { getAllSolicitudes } from "@/app/actions/solicitudes"
-import { getAllUsers } from "@/app/actions/auth"
+import { SolicitudesWorkflowTabs } from "@/components/solicitudes-workflow-tabs" // Importamos el nuevo componente
+import { getAllUsers, getSession } from "@/app/actions/auth"
 import { SolicitudesTable } from "@/components/solicitudes-table"
 import { SolicitudesFilters } from "@/components/solicitudes-filters"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +21,6 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 
-// ... (Tipos Solicitud y Usuario se mantienen igual)
 type Solicitud = {
   id: string
   nombre_solicitante: string
@@ -47,10 +49,19 @@ const ITEMS_PER_PAGE = 4
 export default function AdminSolicitudesPage() {
   const [allSolicitudes, setAllSolicitudes] = useState<Solicitud[]>([])
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  // Cambio clave: Solo mostramos el loader grande la primera vez
   const [initialLoading, setInitialLoading] = useState(true)
+  const [userRole, setUserRole] = useState<string>("")
   const [currentPage, setCurrentPage] = useState(1)
   const [activeFilters, setActiveFilters] = useState({})
+
+  useEffect(() => {
+    async function fetchSession() {
+      const session = await getSession();
+      if (session) setUserRole(session.rol);
+    }
+    fetchSession();
+    loadData(true);
+  }, []);
 
   useEffect(() => {
     loadData(true) // true indica que es la carga inicial
@@ -59,15 +70,12 @@ export default function AdminSolicitudesPage() {
   async function loadData(isInitial = false, filters?: any) {
     if (isInitial) setInitialLoading(true)
 
-    // Nota: NO ponemos setLoading(true) aquí para recargas subsiguientes
-    // Esto permite que la UI se mantenga visible mientras se actualizan los datos "por debajo"
-
     const filtersToUse = filters || activeFilters
 
     if (filters) setCurrentPage(1)
 
     const [solicitudesResult, usuariosResult] = await Promise.all([
-      getAllSolicitudes(filtersToUse),
+      getAllSolicitudes(filters),
       getAllUsers()
     ])
 
@@ -146,77 +154,28 @@ export default function AdminSolicitudesPage() {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle>Solicitudes</CardTitle>
-              <CardDescription>Visualiza y filtra todas las solicitudes del sistema</CardDescription>
+              <CardTitle>Gestión de Solicitudes</CardTitle>
+              <CardDescription>Flujo de trabajo para {userRole}</CardDescription>
             </div>
-            <Button onClick={downloadCSV} disabled={allSolicitudes.length === 0} className="gap-2">
-              <Download className="h-4 w-4" />
-              Descargar CSV
-            </Button>
+            {/* Botones de descarga */}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <SolicitudesFilters onFilterChange={handleFilterChange} usuarios={usuarios} />
+          {/* Filtros */}
+          <SolicitudesFilters onFilterChange={(f) => loadData(false, f)} usuarios={usuarios} />
 
           {initialLoading ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-8 w-8 animate-spin mb-2" />
-              <p>Cargando solicitudes...</p>
+              <p>Cargando tablero...</p>
             </div>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <SolicitudesTable
-                  solicitudes={currentSolicitudes as any}
-                  isAdmin={true}
-                  onRefresh={handleRefresh}
-                />
-              </div>
-
-              {totalPages > 1 && (
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <PaginationItem key={page}>
-                        <PaginationLink
-                          onClick={() => setCurrentPage(page)}
-                          isActive={currentPage === page}
-                          className="cursor-pointer"
-                        >
-                          {page}
-                        </PaginationLink>
-                      </PaginationItem>
-                    ))}
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              )}
-
-              <div className="flex justify-between items-center text-xs text-muted-foreground px-2">
-                <p>
-                  Mostrando {startIndex + 1}-{Math.min(endIndex, allSolicitudes.length)} de {allSolicitudes.length} solicitudes
-                </p>
-                {/* Pequeño indicador de que está conectado en vivo */}
-                <div className="flex items-center gap-1.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                  </span>
-                  En vivo
-                </div>
-              </div>
-            </>
+            /* AQUÍ IMPLEMENTAMOS LAS NUEVAS PESTAÑAS */
+            <SolicitudesWorkflowTabs
+              solicitudes={allSolicitudes}
+              rolUsuario={userRole}
+              onRefresh={() => loadData(false)}
+            />
           )}
         </CardContent>
       </Card>
