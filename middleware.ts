@@ -15,28 +15,35 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Si está en login y tiene sesión, redirigir según rol
+  const isManagementRole = userRole === "admin" || userRole === "supervisor" || userRole === "tecnico"
+
+  // 1. Redirección desde LOGIN
   if (pathname === "/login" && session) {
-    if (userRole === "admin") {
+    if (isManagementRole) {
       return NextResponse.redirect(new URL("/admin", request.url))
     }
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
-  if (pathname.startsWith("/admin") && (!session || userRole !== "admin")) {
+  // 2. Protección de rutas /admin
+  if (pathname.startsWith("/admin") && (!session || !isManagementRole)) {
+    // Si es un usuario normal intentando entrar a admin, mandarlo al dashboard
+    if (session && userRole === "solicitante") {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
     return NextResponse.redirect(new URL("/login", request.url))
   }
 
-  // Si está en dashboard sin sesión, redirigir a login
-  if (pathname === "/dashboard" && !session) {
-    return NextResponse.redirect(new URL("/login", request.url))
+  // 3. Redirección desde DASHBOARD (para roles de gestión)
+  if (pathname === "/dashboard") {
+    if (!session) return NextResponse.redirect(new URL("/login", request.url))
+
+    if (isManagementRole) {
+      return NextResponse.redirect(new URL("/admin", request.url))
+    }
   }
 
-  if (pathname === "/dashboard" && userRole === "admin") {
-    return NextResponse.redirect(new URL("/admin", request.url))
-  }
-
-  // Si está en la raíz, redirigir a login
+  // 4. Raíz
   if (pathname === "/") {
     return NextResponse.redirect(new URL("/login", request.url))
   }

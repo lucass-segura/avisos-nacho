@@ -2,7 +2,7 @@ import type React from "react"
 import { redirect } from "next/navigation"
 import { getSession, logout } from "@/app/actions/auth"
 import { Button } from "@/components/ui/button"
-import { LogOut, Users, FileText, Settings } from "lucide-react"
+import { LogOut, Users, FileText, Settings, PlusCircle } from "lucide-react"
 import Link from "next/link"
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -12,9 +12,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/login")
   }
 
-  if (session.rol !== "admin") {
+  const allowedRoles = ["admin", "supervisor", "tecnico"]
+  if (!allowedRoles.includes(session.rol)) {
     redirect("/dashboard")
   }
+
+  const canManageUsers = session.rol === "admin" || session.rol === "supervisor"
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -37,18 +40,30 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </header>
 
       {/* Navigation */}
-      <nav className="border-b bg-white/30 backdrop-blur-sm">
+      <nav className="border-b bg-white/30 backdrop-blur-sm overflow-x-auto">
         <div className="container mx-auto px-4">
-          <div className="flex gap-1">
+          <div className="flex gap-1 min-w-max">
+            {/* TODOS pueden ver Solicitudes */}
             <NavLink href="/admin/solicitudes" icon={<FileText className="h-4 w-4" />}>
-              Solicitudes
+              Bandeja de Entrada
             </NavLink>
-            <NavLink href="/admin/usuarios" icon={<Users className="h-4 w-4" />}>
-              Gestión de Usuarios
+
+            {/* TODOS pueden Crear Solicitud (NUEVO) */}
+            <NavLink href="/admin/formulario" icon={<PlusCircle className="h-4 w-4" />}>
+              Nueva Solicitud
             </NavLink>
-            <NavLink href="/admin/configuracion" icon={<Settings className="h-4 w-4" />}>
-              Configuración
-            </NavLink>
+
+            {/* Solo Admin y Supervisor ven Usuarios y Configuración */}
+            {canManageUsers && (
+              <>
+                <NavLink href="/admin/usuarios" icon={<Users className="h-4 w-4" />}>
+                  Usuarios
+                </NavLink>
+                <NavLink href="/admin/configuracion" icon={<Settings className="h-4 w-4" />}>
+                  Sectores & Maquinas
+                </NavLink>
+              </>
+            )}
           </div>
         </div>
       </nav>

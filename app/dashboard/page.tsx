@@ -9,7 +9,7 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  if (session.rol === "admin") {
+  if (session.rol === "admin" || session.rol === "supervisor" || session.rol === "tecnico") {
     redirect("/admin")
   }
 

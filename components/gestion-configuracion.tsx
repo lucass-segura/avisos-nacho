@@ -61,6 +61,7 @@ export function GestionConfiguracion() {
         const res = await createEquipo(newEquipo, selectedSectorForEquipo)
         if (res.success) {
             setNewEquipo("")
+            setSelectedSectorForEquipo("")
             toast({ title: "Equipo creado" })
             loadData()
         } else {
