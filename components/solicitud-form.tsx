@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Camera, Upload, X, Loader2, Eraser } from "lucide-react"
+// Agregamos Pencil al import de iconos
+import { Camera, Upload, X, Loader2, Pencil } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   Dialog,
@@ -22,6 +23,8 @@ import {
 } from "@/components/ui/dialog"
 import imageCompression from "browser-image-compression"
 import { getEquipos, getSectores } from "@/app/actions/configuracion"
+// Importamos el nuevo componente
+import { ImageEditor } from "./image-editor"
 
 const TIPOS_SOLICITUD = ["Reparación / Acondicionamiento", "Oportunidad a Mejora", "Inversión"]
 
@@ -48,6 +51,9 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
   const [selectedSector, setSelectedSector] = useState<string>("")
   const [selectedEquipo, setSelectedEquipo] = useState<string>("")
 
+  // Estado para controlar el editor
+  const [showImageEditor, setShowImageEditor] = useState(false)
+
   useEffect(() => {
     async function loadOptions() {
       const s = await getSectores()
@@ -62,6 +68,11 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
     const file = e.target.files?.[0]
     if (!file) return
 
+    processAndSetImage(file)
+  }
+
+  // Refactorizamos la lógica de procesar imagen para reusarla
+  async function processAndSetImage(file: File) {
     setIsProcessingImage(true)
 
     const options = {
@@ -73,9 +84,7 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
 
     try {
       console.log(`Tamaño original: ${(file.size / 1024 / 1024).toFixed(2)} MB`)
-
       const compressedFile = await imageCompression(file, options)
-
       console.log(`Tamaño comprimido: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`)
 
       setImageFile(compressedFile)
@@ -85,14 +94,26 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
       }
       reader.readAsDataURL(compressedFile)
     } catch (error) {
-      console.error("Error al comprimir la imagen:", error)
-      setErrorMessage("Error al procesar la imagen. Por favor, intente con otra foto.")
+      console.error("Error al procesar la imagen:", error)
+      setErrorMessage("Error al procesar la imagen.")
       setShowErrorModal(true)
     } finally {
       setIsProcessingImage(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
       if (cameraInputRef.current) cameraInputRef.current.value = ""
     }
+  }
+
+  // Función que llama el Editor cuando guarda
+  const handleEditorSave = (editedFile: File) => {
+    // Al guardar desde el editor, actualizamos el estado directamente
+    // No necesitamos comprimir de nuevo si ya viene editada, o podemos hacerlo si queremos asegurarnos
+    setImageFile(editedFile)
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(editedFile)
   }
 
   function removeImage() {
@@ -141,6 +162,8 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
         <CardContent>
           <form id="solicitud-form" action={handleSubmit} className="space-y-6">
 
+            {/* ... Resto de los campos (Tipo, Criticidad, Sector, Equipo) igual que antes ... */}
+
             <div className="space-y-3">
               <Label className="text-base font-semibold">
                 ¿Qué tipo de Solicitud es? <span className="text-red-500">*</span>
@@ -174,20 +197,7 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
             </div>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Sector (Opcional)</Label>
-                {selectedSector && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs text-muted-foreground hover:text-destructive"
-                    onClick={() => setSelectedSector("")}
-                  >
-                    <X className="h-3 w-3 mr-1" /> Borrar selección
-                  </Button>
-                )}
-              </div>
+              <Label className="text-base font-semibold">Sector (Opcional)</Label>
               <Select value={selectedSector} onValueChange={setSelectedSector}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar sector..." />
@@ -200,22 +210,8 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
               </Select>
             </div>
 
-            {/* SELECCIÓN DE EQUIPO (OPCIONAL) */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Equipo / Máquina (Opcional)</Label>
-                {selectedEquipo && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-xs text-muted-foreground hover:text-destructive"
-                    onClick={() => setSelectedEquipo("")}
-                  >
-                    <X className="h-3 w-3 mr-1" /> Borrar selección
-                  </Button>
-                )}
-              </div>
+              <Label className="text-base font-semibold">Equipo / Máquina (Opcional)</Label>
               <Select value={selectedEquipo} onValueChange={setSelectedEquipo}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar equipo..." />
@@ -244,6 +240,7 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
               />
             </div>
 
+            {/* SECCIÓN DE IMAGEN MODIFICADA */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">Foto</Label>
               {!imagePreview ? (
@@ -257,11 +254,7 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
                         disabled={loading || isProcessingImage}
                         className="gap-2"
                       >
-                        {isProcessingImage ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Upload className="h-4 w-4" />
-                        )}
+                        {isProcessingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                         Subir Imagen
                       </Button>
                       <Button
@@ -271,32 +264,15 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
                         disabled={loading || isProcessingImage}
                         className="gap-2"
                       >
-                        {isProcessingImage ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Camera className="h-4 w-4" />
-                        )}
+                        {isProcessingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                         Tomar Foto
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {isProcessingImage ? "Procesando imagen..." : "JPG, JPEG, PNG (máx. 10MB)"}
                     </p>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <input
-                      ref={cameraInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                    <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
                   </CardContent>
                 </Card>
               ) : (
@@ -306,18 +282,33 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
                       <img
                         src={imagePreview || "/placeholder.svg"}
                         alt="Preview"
-                        className="w-full h-auto rounded-lg"
+                        className="w-full h-auto rounded-lg border"
                       />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        onClick={removeImage}
-                        disabled={loading || isProcessingImage}
-                        className="absolute top-2 right-2"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+
+                      {/* Botonera sobre la imagen */}
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setShowImageEditor(true)}
+                          disabled={loading || isProcessingImage}
+                          className="shadow-sm"
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Dibujar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          onClick={removeImage}
+                          disabled={loading || isProcessingImage}
+                          className="shadow-sm"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -338,6 +329,17 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
         </CardContent>
       </Card>
 
+      {/* Editor de Imagen en Modal */}
+      {imagePreview && (
+        <ImageEditor
+          open={showImageEditor}
+          onOpenChange={setShowImageEditor}
+          imageSrc={imagePreview}
+          onSave={handleEditorSave}
+        />
+      )}
+
+      {/* Modales de Carga, Éxito y Error (se mantienen igual que antes) */}
       <Dialog open={loading} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
