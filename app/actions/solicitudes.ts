@@ -16,6 +16,8 @@ export async function createSolicitud(formData: FormData) {
   const criticidad = formData.get("criticidad") as string
   const descripcion = formData.get("descripcion") as string
   const imagen = formData.get("imagen") as File | null
+  const sectorId = formData.get("sector_id") as string | null
+  const equipoId = formData.get("equipo_id") as string | null
 
   if (!nombreSolicitante || !tipoSolicitud || !criticidad || !descripcion) {
     return { success: false, error: "Todos los campos son requeridos" }
@@ -41,6 +43,9 @@ export async function createSolicitud(formData: FormData) {
     descripcion: descripcion,
     imagen_base64: imagenBase64,
     imagen_tipo: imagenTipo,
+    sector_id: sectorId || null,
+    equipo_id: equipoId || null,
+    estado: "Pendiente"
   })
 
   if (error) {

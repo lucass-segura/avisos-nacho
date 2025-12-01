@@ -2,14 +2,15 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { createSolicitud } from "@/app/actions/solicitudes"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Camera, Upload, X, Loader2, User } from "lucide-react"
+import { Camera, Upload, X, Loader2, Eraser } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   Dialog,
@@ -20,6 +21,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import imageCompression from "browser-image-compression"
+import { getEquipos, getSectores } from "@/app/actions/configuracion"
 
 const TIPOS_SOLICITUD = ["Reparación / Acondicionamiento", "Oportunidad a Mejora", "Inversión"]
 
@@ -41,6 +43,20 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const [isProcessingImage, setIsProcessingImage] = useState(false)
+  const [sectores, setSectores] = useState<any[]>([])
+  const [equipos, setEquipos] = useState<any[]>([])
+  const [selectedSector, setSelectedSector] = useState<string>("")
+  const [selectedEquipo, setSelectedEquipo] = useState<string>("")
+
+  useEffect(() => {
+    async function loadOptions() {
+      const s = await getSectores()
+      const e = await getEquipos()
+      if (s.success) setSectores(s.data || [])
+      if (e.success) setEquipos(e.data || [])
+    }
+    loadOptions()
+  }, [])
 
   async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -90,6 +106,9 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
     setLoading(true)
     setErrorMessage("")
 
+    if (selectedSector) formData.set("sector_id", selectedSector)
+    if (selectedEquipo) formData.set("equipo_id", selectedEquipo)
+
     if (imageFile) {
       formData.set("imagen", imageFile)
     }
@@ -102,6 +121,8 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
       const form = document.getElementById("solicitud-form") as HTMLFormElement
       form?.reset()
       removeImage()
+      setSelectedSector("")
+      setSelectedEquipo("")
       setShowSuccessModal(true)
       router.refresh()
     } else {
@@ -150,6 +171,63 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
                   </div>
                 ))}
               </RadioGroup>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Sector (Opcional)</Label>
+                {selectedSector && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => setSelectedSector("")}
+                  >
+                    <X className="h-3 w-3 mr-1" /> Borrar selección
+                  </Button>
+                )}
+              </div>
+              <Select value={selectedSector} onValueChange={setSelectedSector}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar sector..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {sectores.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* SELECCIÓN DE EQUIPO (OPCIONAL) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-base font-semibold">Equipo / Máquina (Opcional)</Label>
+                {selectedEquipo && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => setSelectedEquipo("")}
+                  >
+                    <X className="h-3 w-3 mr-1" /> Borrar selección
+                  </Button>
+                )}
+              </div>
+              <Select value={selectedEquipo} onValueChange={setSelectedEquipo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar equipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {equipos.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nombre} {e.sector ? `(${e.sector.nombre})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-3">

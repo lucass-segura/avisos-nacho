@@ -4,7 +4,7 @@ import { useState } from "react"
 import { deleteUser } from "@/app/actions/auth"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Trash2, Shield, User } from "lucide-react"
+import { Trash2, Shield, User, HardHat, UserCog } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   AlertDialog,
@@ -30,6 +30,37 @@ export function UsersList({ users }: { users: Usuario[] }) {
   const [showDialog, setShowDialog] = useState(false)
   const [userToDelete, setUserToDelete] = useState<string | null>(null)
   const router = useRouter()
+
+  const getRoleIcon = (rol: string) => {
+    switch (rol) {
+      case "admin":
+        return <Shield className="h-5 w-5 text-primary" />
+      case "supervisor":
+        return <UserCog className="h-5 w-5 text-primary" />
+      case "tecnico":
+        return <HardHat className="h-5 w-5 text-primary" />
+      case "solicitante":
+        return <User className="h-5 w-5 text-primary" />
+      default:
+        return <User className="h-5 w-5 text-primary" />
+    }
+  }
+
+  const getRoleLabel = (rol: string) => {
+    switch (rol) {
+      case 'admin': return "Admin";
+      case 'supervisor': return "Supervisor";
+      case 'tecnico': return "Técnico";
+      case 'solicitante': return "Solicitante";
+      default: return rol;
+    }
+  }
+
+  const getBadgeVariant = (rol: string): "default" | "secondary" | "destructive" | "outline" => {
+    if (rol === 'admin') return "default";
+    if (rol === 'supervisor') return "secondary"; // O un color custom si prefieres
+    return "outline";
+  }
 
   function handleDeleteClick(userId: string) {
     setUserToDelete(userId)
@@ -66,21 +97,19 @@ export function UsersList({ users }: { users: Usuario[] }) {
               className="flex items-center justify-between rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  {user.rol === "admin" ? (
-                    <Shield className="h-5 w-5 text-primary" />
-                  ) : (
-                    <User className="h-5 w-5 text-primary" />
-                  )}
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
+                  {getRoleIcon(user.rol)}
                 </div>
                 <div>
                   <p className="font-medium text-sm">{user.username}</p>
+                  <p className="text-xs text-muted-foreground">{user.nombre_completo}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={user.rol === "admin" ? "default" : "secondary"}>
-                  {user.rol === "admin" ? "Admin" : "Usuario"}
+                <Badge variant={getBadgeVariant(user.rol)}>
+                  {getRoleLabel(user.rol)}
                 </Badge>
+                {/* Evitar borrar admins si no es necesario, o lógica adicional de permisos aquí */}
                 {user.rol !== "admin" && (
                   <Button
                     variant="ghost"

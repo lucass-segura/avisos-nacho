@@ -2,7 +2,7 @@ import type React from "react"
 import { redirect } from "next/navigation"
 import { getSession, logout } from "@/app/actions/auth"
 import { Button } from "@/components/ui/button"
-import { LogOut, Users, FileText } from "lucide-react"
+import { LogOut, Users, FileText, Settings } from "lucide-react"
 import Link from "next/link"
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -45,6 +45,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </NavLink>
             <NavLink href="/admin/usuarios" icon={<Users className="h-4 w-4" />}>
               Gestión de Usuarios
+            </NavLink>
+            <NavLink href="/admin/configuracion" icon={<Settings className="h-4 w-4" />}>
+              Configuración
             </NavLink>
           </div>
         </div>

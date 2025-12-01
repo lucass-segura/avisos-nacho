@@ -97,10 +97,6 @@ export async function createUser(formData: FormData) {
     return { success: false, error: "La contraseña no puede contener espacios" }
   }
 
-  if (rol !== "admin" && rol !== "user") {
-    return { success: false, error: "Rol inválido" }
-  }
-
   const validRoles = ["admin", "supervisor", "tecnico", "solicitante"];
   if (!validRoles.includes(rol)) {
     return { success: false, error: "Rol inválido" }
