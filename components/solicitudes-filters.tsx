@@ -3,199 +3,145 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, X } from "lucide-react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { X, Filter } from "lucide-react"
+import type { FiltrosSolicitud, EstadoSolicitud, TipoSolicitud, Criticidad } from "@/types"
 
-const NOMBRES_SOLICITANTES = ["Ignacio Suñé", "Jésica Destéfano", "Noelia García", "Silvana Guccione"]
-const TIPOS_SOLICITUD = ["Reparación / Acondicionamiento", "Oportunidad a Mejora", "Inversión"]
-const CRITICIDAD_OPTIONS = [
-  { value: "Bajo", label: "Bajo" },
-  { value: "Medio", label: "Medio" },
-  { value: "Alto", label: "Alto" },
-  { value: "Crítico", label: "Crítico (avisar también por WhatsApp)" },
+const TIPOS: TipoSolicitud[] = [
+  "Reparación/Acondicionamiento",
+  "Oportunidad a Mejora",
+  "Inversión",
+]
+const CRITICIDADES: Criticidad[] = ["Bajo", "Medio", "Alto", "Crítico"]
+const ESTADOS: EstadoSolicitud[] = [
+  "Pendiente",
+  "Recibida",
+  "Derivada",
+  "En proceso",
+  "Finalizada",
 ]
 
-type Filters = {
-  nombreSolicitante?: string
-  tipoSolicitud?: string
-  criticidad?: string
-  usuarioId?: string
-  estado?: string
-  fechaInicio?: string
-  fechaFin?: string
+interface SolicitudesFiltersProps {
+  onFilterChange: (filters: FiltrosSolicitud) => void
 }
 
-type Usuario = {
-  id: string
-  username: string
-}
+export function SolicitudesFilters({ onFilterChange }: SolicitudesFiltersProps) {
+  const [filters, setFilters] = useState<FiltrosSolicitud>({})
 
-export function SolicitudesFilters({
-  onFilterChange,
-  usuarios,
-}: {
-  onFilterChange: (filters: Filters) => void
-  usuarios: Usuario[]
-}) {
-  const [filters, setFilters] = useState<Filters>({})
-  const [fechaInicio, setFechaInicio] = useState<Date>()
-  const [fechaFin, setFechaFin] = useState<Date>()
-
-  function handleFilterChange(key: keyof Filters, value: string | undefined) {
-    const newFilters = { ...filters }
-    if (value) {
-      newFilters[key] = value
+  function update(key: keyof FiltrosSolicitud, value: string | undefined) {
+    const next = { ...filters }
+    if (value && value !== "__all__") {
+      (next as Record<string, string>)[key] = value
     } else {
-      delete newFilters[key]
+      delete (next as Record<string, string | undefined>)[key]
     }
-    setFilters(newFilters)
-    onFilterChange(newFilters)
+    setFilters(next)
+    onFilterChange(next)
   }
 
-  function handleFechaInicioChange(date: Date | undefined) {
-    setFechaInicio(date)
-    if (date) {
-      // Convertir a formato dd/mm/yyyy para el filtro
-      const formatted = format(date, "dd/MM/yyyy")
-      handleFilterChange("fechaInicio", formatted)
-    } else {
-      handleFilterChange("fechaInicio", undefined)
-    }
-  }
-
-  function handleFechaFinChange(date: Date | undefined) {
-    setFechaFin(date)
-    if (date) {
-      // Convertir a formato dd/mm/yyyy para el filtro
-      const formatted = format(date, "dd/MM/yyyy")
-      handleFilterChange("fechaFin", formatted)
-    } else {
-      handleFilterChange("fechaFin", undefined)
-    }
-  }
-
-  function clearFilters() {
+  function clear() {
     setFilters({})
-    setFechaInicio(undefined)
-    setFechaFin(undefined)
     onFilterChange({})
   }
 
-  const hasActiveFilters = Object.keys(filters).length > 0
+  const hasFilters = Object.keys(filters).length > 0
 
   return (
-    <div className="space-y-4 p-4 bg-card rounded-lg border">
+    <div className="space-y-3 p-4 glass rounded-xl shadow-glass">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Filtros</h3>
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-2">
-            <X className="h-4 w-4" />
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Filter className="h-4 w-4" />
+          Filtros
+        </div>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clear} className="gap-1.5 h-7 text-xs">
+            <X className="h-3 w-3" />
             Limpiar
           </Button>
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div className="space-y-2">
-          <Label>Nombre del Solicitante</Label>
-          <Select value={filters.nombreSolicitante} onValueChange={(v) => handleFilterChange("nombreSolicitante", v)}>
-            <SelectTrigger>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="space-y-1">
+          <Label className="text-xs">Buscar solicitante</Label>
+          <Input
+            placeholder="Nombre..."
+            className="h-8 text-sm"
+            value={filters.busqueda || ""}
+            onChange={(e) => update("busqueda", e.target.value || undefined)}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs">Tipo</Label>
+          <Select value={filters.tipo_solicitud || "__all__"} onValueChange={(v) => update("tipo_solicitud", v)}>
+            <SelectTrigger className="h-8 text-sm">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos</SelectItem>
-              {NOMBRES_SOLICITANTES.map((nombre) => (
-                <SelectItem key={nombre} value={nombre}>
-                  {nombre}
-                </SelectItem>
+              {TIPOS.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Tipo de Solicitud</Label>
-          <Select value={filters.tipoSolicitud} onValueChange={(v) => handleFilterChange("tipoSolicitud", v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Todos</SelectItem>
-              {TIPOS_SOLICITUD.map((tipo) => (
-                <SelectItem key={tipo} value={tipo}>
-                  {tipo}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Criticidad</Label>
-          <Select value={filters.criticidad} onValueChange={(v) => handleFilterChange("criticidad", v)}>
-            <SelectTrigger>
+        <div className="space-y-1">
+          <Label className="text-xs">Criticidad</Label>
+          <Select value={filters.criticidad || "__all__"} onValueChange={(v) => update("criticidad", v)}>
+            <SelectTrigger className="h-8 text-sm">
               <SelectValue placeholder="Todas" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todas</SelectItem>
-              {CRITICIDAD_OPTIONS.map((crit) => (
-                <SelectItem key={crit.value} value={crit.value}>
-                  {crit.label}
-                </SelectItem>
+              {CRITICIDADES.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Usuario</Label>
-          <Select value={filters.usuarioId} onValueChange={(v) => handleFilterChange("usuarioId", v)}>
-            <SelectTrigger>
+        <div className="space-y-1">
+          <Label className="text-xs">Estado</Label>
+          <Select value={filters.estado || "__all__"} onValueChange={(v) => update("estado", v)}>
+            <SelectTrigger className="h-8 text-sm">
               <SelectValue placeholder="Todos" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos</SelectItem>
-              {usuarios.map((usuario) => (
-                <SelectItem key={usuario.id} value={usuario.id}>
-                  {usuario.username}
-                </SelectItem>
+              {ESTADOS.map((e) => (
+                <SelectItem key={e} value={e}>{e}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label>Fecha Inicio</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left font-normal bg-transparent">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {fechaInicio ? format(fechaInicio, "dd/MM/yyyy") : <span>Seleccionar fecha</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={fechaInicio} onSelect={handleFechaInicioChange} locale={es} />
-            </PopoverContent>
-          </Popover>
+        <div className="space-y-1">
+          <Label className="text-xs">Fecha desde</Label>
+          <Input
+            type="date"
+            className="h-8 text-sm"
+            value={filters.fecha_desde || ""}
+            onChange={(e) => update("fecha_desde", e.target.value || undefined)}
+          />
         </div>
 
-        <div className="space-y-2">
-          <Label>Fecha Fin</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left font-normal bg-transparent">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {fechaFin ? format(fechaFin, "dd/MM/yyyy") : <span>Seleccionar fecha</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={fechaFin} onSelect={handleFechaFinChange} locale={es} />
-            </PopoverContent>
-          </Popover>
+        <div className="space-y-1">
+          <Label className="text-xs">Fecha hasta</Label>
+          <Input
+            type="date"
+            className="h-8 text-sm"
+            value={filters.fecha_hasta || ""}
+            onChange={(e) => update("fecha_hasta", e.target.value || undefined)}
+          />
         </div>
       </div>
     </div>

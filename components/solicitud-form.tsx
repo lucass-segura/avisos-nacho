@@ -1,32 +1,54 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import imageCompression from "browser-image-compression"
 import { createSolicitud } from "@/app/actions/solicitudes"
+import { getSectores, getEquipos } from "@/app/actions/configuracion"
+import { ImageEditor } from "./image-editor"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-// Agregamos Pencil al import de iconos
-import { Camera, Upload, X, Loader2, Pencil } from "lucide-react"
-import { useRouter } from "next/navigation"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog"
-import imageCompression from "browser-image-compression"
-import { getEquipos, getSectores } from "@/app/actions/configuracion"
-// Importamos el nuevo componente
-import { ImageEditor } from "./image-editor"
+import {
+  Camera,
+  Upload,
+  X,
+  Loader2,
+  Pencil,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react"
+import type { Sector, Equipo } from "@/types"
 
-const TIPOS_SOLICITUD = ["Reparación / Acondicionamiento", "Oportunidad a Mejora", "Inversión"]
+const TIPOS_SOLICITUD = [
+  "Reparación/Acondicionamiento",
+  "Oportunidad a Mejora",
+  "Inversión",
+]
 
 const CRITICIDADES = [
   { value: "Bajo", label: "Bajo" },
@@ -35,68 +57,58 @@ const CRITICIDADES = [
   { value: "Crítico", label: "Crítico (avisar también por WhatsApp)" },
 ]
 
-export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: string }) {
-  const [loading, setLoading] = useState(false)
-  const [showErrorModal, setShowErrorModal] = useState(false)
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
-  const [errorMessage, setErrorMessage] = useState("")
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
+const IMAGE_OPTIONS = {
+  maxSizeMB: 0.5,
+  useWebWorker: true,
+  initialQuality: 0.7,
+}
+
+export function SolicitudForm() {
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
-  const [isProcessingImage, setIsProcessingImage] = useState(false)
-  const [sectores, setSectores] = useState<any[]>([])
-  const [equipos, setEquipos] = useState<any[]>([])
-  const [selectedSector, setSelectedSector] = useState<string>("")
-  const [selectedEquipo, setSelectedEquipo] = useState<string>("")
 
-  // Estado para controlar el editor
+  const [loading, setLoading] = useState(false)
+  const [isProcessingImage, setIsProcessingImage] = useState(false)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [showImageEditor, setShowImageEditor] = useState(false)
 
+  const [sectores, setSectores] = useState<Sector[]>([])
+  const [equipos, setEquipos] = useState<Equipo[]>([])
+  const [selectedSector, setSelectedSector] = useState("")
+  const [selectedEquipo, setSelectedEquipo] = useState("")
+
+  const [modal, setModal] = useState<{
+    type: "success" | "error" | "loading" | null
+    message?: string
+  }>({ type: null })
+
+  // Cargar sectores y equipos
   useEffect(() => {
-    async function loadOptions() {
-      const s = await getSectores()
-      const e = await getEquipos()
-      if (s.success) setSectores(s.data || [])
-      if (e.success) setEquipos(e.data || [])
+    async function load() {
+      const [s, e] = await Promise.all([getSectores(), getEquipos()])
+      if (s.success) setSectores(s.data as Sector[])
+      if (e.success) setEquipos(e.data as Equipo[])
     }
-    loadOptions()
+    load()
   }, [])
 
-  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // Equipos filtrados por sector seleccionado
+  const equiposFiltrados = selectedSector
+    ? equipos.filter((e) => e.sector_id === selectedSector)
+    : equipos
 
-    processAndSetImage(file)
-  }
-
-  // Refactorizamos la lógica de procesar imagen para reusarla
-  async function processAndSetImage(file: File) {
+  async function processImage(file: File) {
     setIsProcessingImage(true)
-
-    const options = {
-      maxSizeMB: 0.5,
-      maxWidthOrHeight: 1920,
-      useWebWorker: true,
-      initialQuality: 0.7,
-    }
-
     try {
-      console.log(`Tamaño original: ${(file.size / 1024 / 1024).toFixed(2)} MB`)
-      const compressedFile = await imageCompression(file, options)
-      console.log(`Tamaño comprimido: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`)
-
-      setImageFile(compressedFile)
+      const compressed = await imageCompression(file, IMAGE_OPTIONS)
+      setImageFile(compressed)
       const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string)
-      }
-      reader.readAsDataURL(compressedFile)
-    } catch (error) {
-      console.error("Error al procesar la imagen:", error)
-      setErrorMessage("Error al procesar la imagen.")
-      setShowErrorModal(true)
+      reader.onloadend = () => setImagePreview(reader.result as string)
+      reader.readAsDataURL(compressed)
+    } catch {
+      setModal({ type: "error", message: "Error al procesar la imagen" })
     } finally {
       setIsProcessingImage(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
@@ -104,15 +116,15 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
     }
   }
 
-  // Función que llama el Editor cuando guarda
-  const handleEditorSave = (editedFile: File) => {
-    // Al guardar desde el editor, actualizamos el estado directamente
-    // No necesitamos comprimir de nuevo si ya viene editada, o podemos hacerlo si queremos asegurarnos
+  function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) processImage(file)
+  }
+
+  function handleEditorSave(editedFile: File) {
     setImageFile(editedFile)
     const reader = new FileReader()
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
+    reader.onloadend = () => setImagePreview(reader.result as string)
     reader.readAsDataURL(editedFile)
   }
 
@@ -125,17 +137,13 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
 
   async function handleSubmit(formData: FormData) {
     setLoading(true)
-    setErrorMessage("")
+    setModal({ type: "loading" })
 
     if (selectedSector) formData.set("sector_id", selectedSector)
     if (selectedEquipo) formData.set("equipo_id", selectedEquipo)
-
-    if (imageFile) {
-      formData.set("imagen", imageFile)
-    }
+    if (imageFile) formData.set("imagen", imageFile)
 
     const result = await createSolicitud(formData)
-
     setLoading(false)
 
     if (result.success) {
@@ -144,35 +152,37 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
       removeImage()
       setSelectedSector("")
       setSelectedEquipo("")
-      setShowSuccessModal(true)
+      setModal({ type: "success", message: "Solicitud enviada correctamente" })
       router.refresh()
     } else {
-      setErrorMessage(result.error || "Error al enviar solicitud")
-      setShowErrorModal(true)
+      setModal({ type: "error", message: result.error })
     }
   }
 
   return (
     <>
-      <Card>
+      <Card className="glass-strong shadow-glass-lg border-0 rounded-2xl">
         <CardHeader>
-          <CardTitle>Nueva Solicitud</CardTitle>
-          <CardDescription>Completa el formulario para enviar una nueva solicitud</CardDescription>
+          <CardTitle className="text-gradient">Nueva Solicitud</CardTitle>
+          <CardDescription>
+            Completa el formulario para enviar una solicitud de mantenimiento
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form id="solicitud-form" action={handleSubmit} className="space-y-6">
-
-            {/* ... Resto de los campos (Tipo, Criticidad, Sector, Equipo) igual que antes ... */}
-
+            {/* Tipo de solicitud */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">
-                ¿Qué tipo de Solicitud es? <span className="text-red-500">*</span>
+                Tipo de Solicitud <span className="text-destructive">*</span>
               </Label>
               <RadioGroup name="tipo_solicitud" required disabled={loading}>
                 {TIPOS_SOLICITUD.map((tipo) => (
                   <div key={tipo} className="flex items-center space-x-2">
-                    <RadioGroupItem value={tipo} id={tipo} />
-                    <Label htmlFor={tipo} className="font-normal cursor-pointer">
+                    <RadioGroupItem value={tipo} id={`tipo-${tipo}`} />
+                    <Label
+                      htmlFor={`tipo-${tipo}`}
+                      className="font-normal cursor-pointer"
+                    >
                       {tipo}
                     </Label>
                   </div>
@@ -180,15 +190,22 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
               </RadioGroup>
             </div>
 
+            {/* Criticidad */}
             <div className="space-y-3">
               <Label className="text-base font-semibold">
-                Criticidad de la Solicitud <span className="text-red-500">*</span>
+                Criticidad <span className="text-destructive">*</span>
               </Label>
               <RadioGroup name="criticidad" required disabled={loading}>
                 {CRITICIDADES.map((crit) => (
                   <div key={crit.value} className="flex items-center space-x-2">
-                    <RadioGroupItem value={crit.value} id={crit.value} />
-                    <Label htmlFor={crit.value} className="font-normal cursor-pointer">
+                    <RadioGroupItem
+                      value={crit.value}
+                      id={`crit-${crit.value}`}
+                    />
+                    <Label
+                      htmlFor={`crit-${crit.value}`}
+                      className="font-normal cursor-pointer"
+                    >
                       {crit.label}
                     </Label>
                   </div>
@@ -196,57 +213,78 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
               </RadioGroup>
             </div>
 
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Sector (Opcional)</Label>
-              <Select value={selectedSector} onValueChange={setSelectedSector}>
+            {/* Sector */}
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">
+                Sector <span className="text-muted-foreground text-sm font-normal">(opcional)</span>
+              </Label>
+              <Select
+                value={selectedSector}
+                onValueChange={(v) => {
+                  setSelectedSector(v)
+                  setSelectedEquipo("")
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar sector..." />
                 </SelectTrigger>
                 <SelectContent>
                   {sectores.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Equipo / Máquina (Opcional)</Label>
-              <Select value={selectedEquipo} onValueChange={setSelectedEquipo}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar equipo..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {equipos.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.nombre} {e.sector ? `(${e.sector.nombre})` : ""}
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nombre}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-3">
+            {/* Equipo */}
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">
+                Equipo / Máquina{" "}
+                <span className="text-muted-foreground text-sm font-normal">(opcional)</span>
+              </Label>
+              <Select value={selectedEquipo} onValueChange={setSelectedEquipo}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar equipo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {equiposFiltrados.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nombre}
+                      {e.sector ? ` (${e.sector.nombre})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Descripción */}
+            <div className="space-y-2">
               <Label htmlFor="descripcion" className="text-base font-semibold">
-                ¿Cuál es la Solicitud? <span className="text-red-500">*</span>
+                Descripción <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="descripcion"
                 name="descripcion"
-                placeholder="Tu respuesta"
+                placeholder="Describe el problema o la solicitud..."
                 required
                 disabled={loading}
                 className="min-h-[120px] resize-none"
               />
             </div>
 
-            {/* SECCIÓN DE IMAGEN MODIFICADA */}
-            <div className="space-y-3">
-              <Label className="text-base font-semibold">Foto</Label>
+            {/* Imagen */}
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">
+                Foto{" "}
+                <span className="text-muted-foreground text-sm font-normal">(opcional)</span>
+              </Label>
+
               {!imagePreview ? (
                 <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center gap-4 p-6">
-                    <div className="flex gap-4">
+                  <CardContent className="flex flex-col items-center justify-center gap-3 py-6">
+                    <div className="flex gap-3">
                       <Button
                         type="button"
                         variant="outline"
@@ -254,7 +292,11 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
                         disabled={loading || isProcessingImage}
                         className="gap-2"
                       >
-                        {isProcessingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        {isProcessingImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
                         Subir Imagen
                       </Button>
                       <Button
@@ -264,47 +306,64 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
                         disabled={loading || isProcessingImage}
                         className="gap-2"
                       >
-                        {isProcessingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                        {isProcessingImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Camera className="h-4 w-4" />
+                        )}
                         Tomar Foto
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {isProcessingImage ? "Procesando imagen..." : "JPG, JPEG, PNG (máx. 10MB)"}
+                      {isProcessingImage
+                        ? "Procesando imagen..."
+                        : "JPG, PNG (se comprimirá automáticamente)"}
                     </p>
-                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                    <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleImageChange} className="hidden" />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
                   </CardContent>
                 </Card>
               ) : (
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3">
                     <div className="relative">
                       <img
-                        src={imagePreview || "/placeholder.svg"}
-                        alt="Preview"
+                        src={imagePreview}
+                        alt="Vista previa"
                         className="w-full h-auto rounded-lg border"
                       />
-
-                      {/* Botonera sobre la imagen */}
                       <div className="absolute top-2 right-2 flex gap-2">
                         <Button
                           type="button"
                           variant="secondary"
                           size="sm"
                           onClick={() => setShowImageEditor(true)}
-                          disabled={loading || isProcessingImage}
-                          className="shadow-sm"
+                          disabled={loading}
+                          className="shadow-sm gap-1.5"
                         >
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Dibujar
+                          <Pencil className="h-3.5 w-3.5" />
+                          Anotar
                         </Button>
                         <Button
                           type="button"
                           variant="destructive"
                           size="icon"
                           onClick={removeImage}
-                          disabled={loading || isProcessingImage}
-                          className="shadow-sm"
+                          disabled={loading}
+                          className="shadow-sm h-8 w-8"
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -315,7 +374,12 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading || isProcessingImage}>
+            {/* Submit */}
+            <Button
+              type="submit"
+              className="w-full h-11 bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 shadow-md shadow-sky-500/20 transition-all"
+              disabled={loading || isProcessingImage}
+            >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -329,7 +393,7 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
         </CardContent>
       </Card>
 
-      {/* Editor de Imagen en Modal */}
+      {/* Editor de imagen */}
       {imagePreview && (
         <ImageEditor
           open={showImageEditor}
@@ -339,39 +403,73 @@ export function SolicitudForm({ nombreSolicitante }: { nombreSolicitante?: strin
         />
       )}
 
-      {/* Modales de Carga, Éxito y Error (se mantienen igual que antes) */}
-      <Dialog open={loading} onOpenChange={() => { }}>
-        <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+      {/* Modal de carga */}
+      <Dialog open={modal.type === "loading"} onOpenChange={() => {}}>
+        <DialogContent
+          className="sm:max-w-sm"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Enviando solicitud...</DialogTitle>
-            <DialogDescription>Por favor espera mientras procesamos tu solicitud.</DialogDescription>
+            <DialogDescription>
+              Por favor espera mientras se procesa tu solicitud.
+            </DialogDescription>
           </DialogHeader>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
-        <DialogContent className="sm:max-w-md">
+      {/* Modal éxito */}
+      <Dialog
+        open={modal.type === "success"}
+        onOpenChange={() => setModal({ type: null })}
+      >
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
-            <DialogDescription>{errorMessage}</DialogDescription>
+            <div className="flex justify-center mb-2">
+              <CheckCircle2 className="h-12 w-12 text-green-500" />
+            </div>
+            <DialogTitle className="text-center">Solicitud enviada</DialogTitle>
+            <DialogDescription className="text-center">
+              {modal.message}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => setShowErrorModal(false)}>Aceptar</Button>
+            <Button
+              onClick={() => setModal({ type: null })}
+              className="w-full"
+            >
+              Aceptar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="sm:max-w-md">
+      {/* Modal error */}
+      <Dialog
+        open={modal.type === "error"}
+        onOpenChange={() => setModal({ type: null })}
+      >
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>¡Éxito!</DialogTitle>
-            <DialogDescription>Solicitud enviada con éxito</DialogDescription>
+            <div className="flex justify-center mb-2">
+              <AlertCircle className="h-12 w-12 text-destructive" />
+            </div>
+            <DialogTitle className="text-center">Error</DialogTitle>
+            <DialogDescription className="text-center">
+              {modal.message}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button onClick={() => setShowSuccessModal(false)}>Aceptar</Button>
+            <Button
+              onClick={() => setModal({ type: null })}
+              variant="outline"
+              className="w-full"
+            >
+              Cerrar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
